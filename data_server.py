@@ -8,9 +8,9 @@ DATA_FILE = "listings.json"
 with open(DATA_FILE, 'r') as file:
     listings = json.load(file)
 
-def handle_client(conn):
+def handle_client(conn, addr):
     while True:
-        request = conn.recv(1024)
+        request = conn.recv(4096)
         if not request:
             break
 
@@ -25,6 +25,8 @@ def handle_client(conn):
             response = format_response(error="Invalid command")
 
         conn.sendall(response.encode())
+
+    print(f"Connection with {addr} closed")
     conn.close()
 
 def handle_search(command):
@@ -71,12 +73,17 @@ def main():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.bind((HOST, PORT))
     server_socket.listen()
-    print(f"Server is listening on {HOST}:{PORT}")
+    print(f"Data Server is listening on {HOST}:{PORT}")
 
-    while True:
-        conn, addr = server_socket.accept()
-        print(f"Connected by {addr}")
-        handle_client(conn)
-
+    try:
+        while True:
+            conn, addr = server_socket.accept()
+            print(f"Connected by {addr}")
+            handle_client(conn, addr)
+    except KeyboardInterrupt:
+        print("Shutting down the Data server...")
+    finally:
+        server_socket.close()
+        
 if __name__ == "__main__":
     main()
