@@ -5,8 +5,10 @@ HOST = "127.0.0.1"
 PORT = 6000
 DATA_FILE = "listings.json"
 
+# Load listings at startup
 with open(DATA_FILE, 'r') as file:
     listings = json.load(file)
+print(f"Loaded {len(listings)} listings from {DATA_FILE}")
 
 def handle_client(conn, addr):
     while True:
@@ -22,7 +24,7 @@ def handle_client(conn, addr):
         elif command.startswith("RAW_SEARCH"):
             response = format_response(results=handle_search(command))
         else:
-            response = format_response(error="Invalid command")
+            response = f"ERROR Invalid command\n"
 
         conn.sendall(response.encode())
 
@@ -30,7 +32,8 @@ def handle_client(conn, addr):
     conn.close()
 
 def handle_search(command):
-    args = command.split()[1:]
+    """Parse RAW_SEARCH command and filter listings."""
+    args = command.split()[1:]  # Skip "RAW_SEARCH"
     filters = {}
 
     for arg in args:
@@ -50,8 +53,9 @@ def handle_search(command):
     return results
 
 def format_response(results=None, error=None):
+    """Format response according to protocol specification (plain text, not JSON)."""
     if error is not None:
-        return json.dumps({"error": f"ERROR {error}\n"})
+        return f"ERROR {error}\n"
     
     lines = []
     lines.append(f"OK RESULT {len(results)}")
@@ -66,11 +70,12 @@ def format_response(results=None, error=None):
         )
         lines.append(line)
 
-    lines.append("END\n")
-    return json.dumps({"response": "\n".join(lines)})
+    lines.append("END")
+    return "\n".join(lines) + "\n"
 
 def main():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server_socket.bind((HOST, PORT))
     server_socket.listen()
     print(f"Data Server is listening on {HOST}:{PORT}")
@@ -81,7 +86,7 @@ def main():
             print(f"Connected by {addr}")
             handle_client(conn, addr)
     except KeyboardInterrupt:
-        print("Shutting down the Data server...")
+        print("\nShutting down the Data server...")
     finally:
         server_socket.close()
         
